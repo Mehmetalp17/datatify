@@ -32,3 +32,8 @@ CSE458_Project_Proposal.docx
 *.blg
 *.lot
 *.lof
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml

@@ -6,7 +6,7 @@ Datatify is a FastAPI web app that analyzes Spotify Extended Streaming History e
 
 The dashboard UI is in Turkish. Code, module names, and API identifiers are in English.
 
-**Live demo:** <https://web-production-65055.up.railway.app/>
+**Live demo (AWS):** <http://datatify-env.eba-uq2wapkx.eu-west-1.elasticbeanstalk.com>
 
 ---
 
@@ -109,8 +109,9 @@ Spotify JSON upload
 | AI analysis | Google Gemini via `google-genai` |
 | Frontend | HTML, CSS, JavaScript, Chart.js, D3.js |
 | Database | SQLite |
-| Deployment | Railway, Nixpacks |
-| Python | 3.12+ |
+| Containerization | Docker |
+| Deployment | AWS Elastic Beanstalk (eu-west-1, t3.micro) |
+| Python | 3.11+ |
 
 ---
 
@@ -146,16 +147,13 @@ datatify/
 |   `-- test_graph.py       # 13 tests
 |-- docs/
 |   |-- CONTEXT.md                      # Maintainer context
-|   |-- datatify-ieee-report-final.tex  # IEEE paper (final)
-|   `-- datatify-ieee-report.tex        # IEEE paper (draft)
+|   `-- datatify-ieee-report-final.tex  # IEEE final report (CSE 458)
 |-- benchmark_results/      # CSV, JSON, and PNG benchmark outputs
-|-- benchmark.db            # Local SQLite benchmark DB
-|-- HANDOFF.md
-|-- MIDTERM_REPORT.md
-|-- PROJECT_PROPOSAL.md
-|-- midterm_report.tex
-|-- Procfile                # Railway process command
-|-- railway.json            # Railway deployment config
+|-- benchmark.db            # Local SQLite benchmark DB (gitignored)
+|-- Dockerfile              # Container image definition
+|-- .dockerignore           # Docker build context exclusions
+|-- Procfile                # Process command (uvicorn)
+|-- railway.json            # Railway deployment config (legacy)
 |-- requirements.txt
 `-- README.md
 ```
@@ -166,14 +164,14 @@ datatify/
 
 ### Requirements
 
-- Python 3.12+
+- Python 3.11+
 - Java 8+ or newer if you want to run PySpark benchmarks
 - Google Gemini API key if you want AI character analysis
 
 ### Install
 
 ```bash
-git clone https://github.com/emrnel/datatify
+git clone https://github.com/Mehmetalp17/datatify
 cd datatify
 
 python -m venv .venv
@@ -225,7 +223,7 @@ Open <http://localhost:8000>.
 | `GEMINI_API_KEY` | empty | Gemini API key. Empty means AI analysis is skipped. |
 | `SKIP_GEMINI` | empty | Set to `1`, `true`, or `yes` to disable Gemini explicitly. |
 | `DB_PATH` | `benchmark.db` | SQLite database path. |
-| `PORT` | `8000` | Server port used by local runs and Railway. |
+| `PORT` | `8000` | Server port (AWS EB injects `8080` automatically). |
 
 ---
 
@@ -309,15 +307,50 @@ Benchmark outputs are written to `benchmark_results/`.
 
 ## Deployment
 
-The project is currently deployed on Railway.
+### AWS Elastic Beanstalk (Production)
 
-`Procfile` and `railway.json` both use:
+The project is deployed on **AWS Elastic Beanstalk** (Docker platform, `eu-west-1`, `t3.micro`).
+
+| Parameter | Value |
+|---|---|
+| Provider | Amazon Web Services |
+| Service | Elastic Beanstalk |
+| Region | `eu-west-1` (Ireland) |
+| Instance | `t3.micro` (2 vCPU, 1 GiB RAM) |
+| Platform | Docker on Amazon Linux 2 |
+| Live URL | `http://datatify-env.eba-uq2wapkx.eu-west-1.elasticbeanstalk.com` |
+
+**Re-deploy after code changes:**
 
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port $PORT
+git add .
+git commit -m "your message"
+eb deploy
 ```
 
-Railway uses the Nixpacks builder.
+**Set environment variables:**
+
+```bash
+eb setenv GEMINI_API_KEY=your-key DB_PATH=/tmp/benchmark.db
+```
+
+**Check status / open browser:**
+
+```bash
+eb status
+eb open
+```
+
+### Docker
+
+Build and run locally with Docker:
+
+```bash
+docker build -t datatify .
+docker run -p 8080:8080 -e GEMINI_API_KEY=your-key datatify
+```
+
+Open <http://localhost:8080>.
 
 ---
 
@@ -332,6 +365,7 @@ Railway uses the Nixpacks builder.
 - `_validate_rows()` in `clustering.py` is always the first call inside `cluster_users()`. If `METRIC_KEYS` changes, the error surfaces here with a clear message rather than deep inside numpy.
 - `render_dashboard()` in `main.py` is the only place that serialises metrics to HTML. The `/analyze` route calls this function instead of doing the string-replace inline.
 - `build_artist_transition_graph()` returns `(G, diagnostics)`; graph callers must unpack the tuple and should surface diagnostics in API output.
+- EB deploys from git — uncommitted changes are not included. Always commit before `eb deploy`.
 
 ---
 

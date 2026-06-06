@@ -1,7 +1,8 @@
 # Datatify — Project Context
 
 > Load this file at session start to skip codebase exploration.
-> Deployment: https://web-production-65055.up.railway.app/
+> Deployment (Railway): https://web-production-65055.up.railway.app/
+> Deployment (AWS): http://datatify-env.eba-uq2wapkx.eu-west-1.elasticbeanstalk.com
 
 ---
 
@@ -24,7 +25,7 @@ FastAPI web app that analyzes a user's **Spotify Extended Streaming History** (J
 | Distributed pipeline | PySpark (benchmark only) |
 | AI analysis | Google Gemini (gemini-2.5-flash, fallback chain) |
 | Database | SQLite (`benchmark.db` — stores anonymized metric submissions) |
-| Deployment | Railway (Nixpacks builder) |
+| Deployment | Railway (Nixpacks) + AWS Elastic Beanstalk (Docker, eu-west-1) |
 | Python | 3.12+ |
 
 ---
@@ -335,3 +336,49 @@ Run with: `.venv/bin/python -m pytest tests/ -v`
 | `scripts/plot_benchmark.py` | project root | `python scripts/plot_benchmark.py` → writes PNGs to `benchmark_results/` |
 
 Scripts add project root + scripts dir to `sys.path` automatically.
+
+---
+
+## AWS Elastic Beanstalk Deployment
+
+**Live URL:** `http://datatify-env.eba-uq2wapkx.eu-west-1.elasticbeanstalk.com`
+
+| Field | Value |
+|-------|-------|
+| Provider | AWS Elastic Beanstalk |
+| Region | eu-west-1 (Ireland) |
+| Platform | Docker on Amazon Linux 2 |
+| Instance | t3.micro (free tier) |
+| Environment | `datatify-env` |
+| Application | `datatify` |
+| Config files | `Dockerfile`, `.dockerignore` |
+
+**Required env vars (set via `eb setenv`):**
+```bash
+eb setenv GEMINI_API_KEY=xxx DB_PATH=/tmp/benchmark.db
+```
+
+**Deploy commands:**
+```bash
+# First time setup (already done)
+eb init -p docker datatify --region eu-west-1
+eb create datatify-env --single --instance-type t3.micro
+
+# Re-deploy after code changes
+git add . && git commit -m "message"
+eb deploy
+
+# Check status
+eb status
+
+# View logs
+eb logs
+
+# Open in browser
+eb open
+```
+
+**Notes:**
+- SQLite (`benchmark.db`) is ephemeral — resets on instance restart. Acceptable for demo/coursework.
+- EB deploys from git — uncommitted changes are NOT included. Always commit before `eb deploy`.
+- IAM user `datatify-deploy` has `AdministratorAccess` policy for deployment.
